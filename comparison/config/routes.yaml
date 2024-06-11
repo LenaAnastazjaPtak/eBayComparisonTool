@@ -18,3 +18,18 @@ create_product:
     path: /create/product
     controller: App\Controller\ProductController::create
     methods: ['POST']
+
+get_categories:
+    path: /get/categories
+    controller: App\Controller\CategoryController::all
+    methods: ['GET']
+
+get_category:
+    path: /get/category/{id}
+    controller: App\Controller\CategoryController::one
+    methods: ['GET']
+
+create_category:
+    path: /create/category
+    controller: App\Controller\CategoryController::create
+    methods: ['POST']

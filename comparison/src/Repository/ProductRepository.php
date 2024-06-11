@@ -24,14 +24,14 @@ class ProductRepository extends ServiceEntityRepository
 
     public function transformAll(): array
     {
-        $movies = $this->findAll();
-        $moviesArray = [];
+        $products = $this->findAll();
+        $productsArray = [];
 
-        foreach ($movies as $movie) {
-            $moviesArray[] = $this->transform($movie);
+        foreach ($products as $product) {
+            $productsArray[] = $this->transform($product);
         }
 
-        return $moviesArray;
+        return $productsArray;
     }
 
     public function __construct(ManagerRegistry $registry)

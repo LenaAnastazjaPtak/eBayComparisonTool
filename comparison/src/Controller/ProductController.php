@@ -10,7 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class ProductController extends ApiController
 {
-    public function all(EntityManagerInterface $entityManager, ProductRepository $productRepository): JsonResponse
+    public function all(ProductRepository $productRepository): JsonResponse
     {
         $products = $productRepository->transformAll();
 
@@ -25,20 +25,32 @@ class ProductController extends ApiController
             return $this->respondValidationError('Please provide a valid request!');
         }
 
+        if (!$request->get('productCode')) {
+            return $this->respondValidationError('Please provide a product code!');
+        }
+
         if (!$request->get('name')) {
             return $this->respondValidationError('Please provide a name!');
         }
 
-        $movie = new Product();
-        $movie->setProductCode($request->get('productCode'));
-        $movie->setName($request->get('name'));
-        $movie->setDescription($request->get('description'));
-        $movie->setPriceNetto($request->get('priceNetto'));
+        if (!$request->get('description')) {
+            return $this->respondValidationError('Please provide a description!');
+        }
 
-        $em->persist($movie);
+        if (!$request->get('priceNetto')) {
+            return $this->respondValidationError('Please provide a price in netto!');
+        }
+
+        $product = new Product();
+        $product->setProductCode($request->get('productCode'));
+        $product->setName($request->get('name'));
+        $product->setDescription($request->get('description'));
+        $product->setPriceNetto($request->get('priceNetto'));
+
+        $em->persist($product);
         $em->flush();
 
-        return $this->respondCreated($productRepository->transform($movie));
+        return $this->respondCreated($productRepository->transform($product));
     }
 
     public function one(ProductRepository $productRepository, $id, $productCode): JsonResponse
