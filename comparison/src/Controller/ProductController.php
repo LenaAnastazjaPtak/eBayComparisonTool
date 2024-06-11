@@ -3,44 +3,67 @@
 namespace App\Controller;
 
 use App\Entity\Product;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use App\Repository\ProductRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\HttpFoundation\Request;
 use Doctrine\ORM\EntityManagerInterface;
 
-class ProductController extends AbstractController
+class ProductController extends ApiController
 {
-    #[Route('/products', name: 'app_products')]
-    public function all(EntityManagerInterface $entityManager): JsonResponse
+    public function all(ProductRepository $productRepository): JsonResponse
     {
-        $products = $entityManager->getRepository(Product::class)->findAll();
+        $products = $productRepository->transformAll();
 
-        $data = [];
-        foreach ($products as $product) {
-            $data[$product->getId()] = [
-                'code' => $product->getProductCode(),
-                'name' => $product->getName(),
-                'description' => $product->getDescription(),
-                'price' => $product->getPriceNetto(),
-            ];
-        }
-
-        return new JsonResponse($data);
+        return $this->respond($products);
     }
 
-    #[Route('/product/{id}/{productCode}', name: 'app_product')]
-    public function one(EntityManagerInterface $entityManager, $id, $productCode): JsonResponse
+    public function create(Request $request, ProductRepository $productRepository, EntityManagerInterface $em): JsonResponse
     {
-        $product = $entityManager->getRepository(Product::class)->findOneBy(['id' => $id, 'productCode' => $productCode]);
+        $request = $this->transformJsonBody($request);
 
-        $data = [
-            'id' => $product->getId(),
-            'code' => $product->getProductCode(),
-            'name' => $product->getName(),
-            'description' => $product->getDescription(),
-            'price' => $product->getPriceNetto(),
-        ];
+        if (!$request) {
+            return $this->respondValidationError('Please provide a valid request!');
+        }
 
-        return new JsonResponse($data);
+        if (!$request->get('productCode')) {
+            return $this->respondValidationError('Please provide a product code!');
+        }
+
+        if (!$request->get('name')) {
+            return $this->respondValidationError('Please provide a name!');
+        }
+
+        if (!$request->get('description')) {
+            return $this->respondValidationError('Please provide a description!');
+        }
+
+        if (!$request->get('priceNetto')) {
+            return $this->respondValidationError('Please provide a price in netto!');
+        }
+
+        $product = new Product();
+        $product->setProductCode($request->get('productCode'));
+        $product->setName($request->get('name'));
+        $product->setDescription($request->get('description'));
+        $product->setPriceNetto($request->get('priceNetto'));
+
+        $em->persist($product);
+        $em->flush();
+
+        return $this->respondCreated($productRepository->transform($product));
+    }
+
+    public function one(ProductRepository $productRepository, $id, $productCode): JsonResponse
+    {
+        $product = $productRepository->findOneBy(['id' => $id, 'productCode' => $productCode]);
+
+        if (!$product) {
+            return $this->respondNotFound();
+
+        }
+
+        $product = $productRepository->transform($product);
+
+        return $this->respond($product);
     }
 }

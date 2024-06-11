@@ -11,6 +11,29 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class ProductRepository extends ServiceEntityRepository
 {
+    public function transform(object $product): array
+    {
+        return [
+            'id' => (int)$product->getId(),
+            'code' => (string)$product->getProductCode(),
+            'name' => (string)$product->getName(),
+            'description' => (string)$product->getDescription(),
+            'price' => (float)$product->getPriceNetto(),
+        ];
+    }
+
+    public function transformAll(): array
+    {
+        $products = $this->findAll();
+        $productsArray = [];
+
+        foreach ($products as $product) {
+            $productsArray[] = $this->transform($product);
+        }
+
+        return $productsArray;
+    }
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Product::class);
