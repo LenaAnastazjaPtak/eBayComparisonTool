@@ -1,0 +1,101 @@
+version: '3'
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: true
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: comparison
+      MYSQL_USER:
+      MYSQL_PASSWORD:
+    volumes:
+      - db-vol:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  #  elasticsearch:
+  #    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0
+  #    container_name: elasticsearch
+  #    restart: always
+  #    environment:
+  #      - xpack.security.enabled=false
+  #      - discovery.type=single-node
+  #    ulimits:
+  #      memlock:
+  #        soft: -1
+  #        hard: -1
+  #      nofile:
+  #        soft: 65536
+  #        hard: 65536
+  #    cap_add:
+  #      - IPC_LOCK
+  #    volumes:
+  #      - elasticsearch-data:/usr/share/elasticsearch/data
+  #    ports:
+  #      - 9200:9200
+  #      - 9300:9300
+
+  phpmyadmin:
+    image: phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 750M
+    restart: always
+    ports:
+      - "8080:80"
+
+#  rabbitmq:
+#    image: rabbitmq:3-management-alpine
+#    ports:
+#      - 5672:5672
+#      - 15672:15672
+#    volumes:
+#      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+#      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+#    networks:
+#      - rabbitmq_go_net
+
+#  web:
+#    build: .
+#    working_dir: /var/www/html/public
+#    depends_on:
+#      - db
+#      - rabbitmq
+#    ports:
+#      - "8000:80"
+#    volumes:
+#      - ./:/var/www/html/
+
+#networks:
+#  rabbitmq_go_net:
+#    driver: bridge
+
+####> doctrine/doctrine-bundle ###
+#  database:
+#    image: postgres:${POSTGRES_VERSION:-16}-alpine
+#    environment:
+#      POSTGRES_DB: ${POSTGRES_DB:-app}
+#      # You should definitely change the password in production
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+#      POSTGRES_USER: ${POSTGRES_USER:-app}
+#    healthcheck:
+#      test: ["CMD", "pg_isready"]
+#      timeout: 5s
+#      retries: 5
+#      start_period: 60s
+#    volumes:
+#      - database_data:/var/lib/postgresql/data:rw
+#      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+#      # - ./docker/db/data:/var/lib/postgresql/data:rw
+####< doctrine/doctrine-bundle ###
+
+volumes:
+  db-vol:
+  caddy_data:
+  caddy_config:
+  elasticsearch-data:
+####> doctrine/doctrine-bundle ###
+#  database_data:
+####< doctrine/doctrine-bundle ###
