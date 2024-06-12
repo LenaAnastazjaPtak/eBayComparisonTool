@@ -2,7 +2,11 @@
 
 namespace App\Command;
 
+use App\Entity\File;
 use App\Entity\Product;
+use App\Entity\ProductVariant;
+use App\Entity\ProductVariantFile;
+use App\Service\SupplierService;
 use DateTime;
 use Doctrine\DBAL\Exception;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,12 +20,15 @@ use Symfony\Component\HttpKernel\KernelInterface;
 class ImportMobCommand extends Command
 {
     private EntityManagerInterface $em;
+    private SupplierService $supplierService;
 
     public function __construct(
         EntityManagerInterface           $em,
+        SupplierService                  $supplierService,
         private readonly KernelInterface $kernel)
     {
         $this->em = $em;
+        $this->supplierService = $supplierService;
         parent::__construct();
     }
 
@@ -43,37 +50,18 @@ class ImportMobCommand extends Command
         $time = new DateTime('now');
         $output->writeln("Start: " . $time->format("d-m-Y H:i:s"));
 
-
         $output->writeln('Rozpoczynam import produktów');
         $conn = $em->getConnection();
         $conn->beginTransaction();
-
-        $filesToDownload = ['prodinfo_PL.xml'];
-        $ftp = ftp_connect('transfer.midoceanbrands.com');
-        $login_result = ftp_login($ftp, 'reflect', 'FumUqNE4QZ');
-        if ($login_result) {
-            ftp_pasv($ftp, true);
-            foreach ($filesToDownload as $fileToDownload) {
-                $path = $this->kernel->getProjectDir() . "/public/import/mob/" . $fileToDownload;
-                if (!file_exists($path)) {
-                    touch($path);
-                }
-                try {
-                    ftp_get($ftp, $path, $fileToDownload, FTP_BINARY);
-                } catch (Exception $e) {
-                    die($e);
-                }
-            }
-        } else {
-            die('Failed to login to ftp!');
-        }
-        ftp_close($ftp);
-
+        $this->supplierService->connectToMidoceanForFiles(['prodinfo_PL.xml']);
 
         $files = ['prodinfo_PL.xml'];
         foreach ($files as $file) {
             $output->writeln('Przetwarzanie pliku: ' . $file);
             $xml = simplexml_load_file($this->kernel->getProjectDir() . '/public/import/mob/' . $file);
+
+            $conn->commit();
+            $conn->beginTransaction();
 
             $progress = new ProgressBar($output, count($xml->PRODUCTS[0]->PRODUCT));
             $progress->setFormat('debug');
@@ -81,29 +69,25 @@ class ImportMobCommand extends Command
                 $progress->advance();
                 $product = $em->getRepository(Product::class)
                     ->findOneBy([
-                        'productCode' => $midProduct->PRODUCT_BASE_NUMBER . "",
+                        'productCode' => $midProduct->PRODUCT_BASE_NUMBER . ""
                     ]);
 
                 if (!$product) {
                     $product = new Product();
                     $product = $this->updateProduct($product, $midProduct);
+
                     $em->persist($product);
                 }
 
-//                /** @var ProductVariant $variant */
-//                $variant = $em->getRepository(ProductVariant::class)
-//                    ->findOneBy(['variantCode' => $midProduct->PRODUCT_NUMBER . ""]);
-//                $size = $em->getRepository(Size::class)->findOneBy(['name' => (string)$midProduct->DIMENSIONS]);
-//                if (!$variant) {
-//                    $variant = new ProductVariant();
-//                    $variant =
-//                        $this->updateProductVariant($em, $variant, $product, $midProduct, false, $size);
-//                    $em->persist($variant);
-//                } else {
-//                    if ($size) {
-//                        $variant->setSize($size);
-//                    }
-//                }
+                /** @var ProductVariant $variant */
+                $variant = $em->getRepository(ProductVariant::class)
+                    ->findOneBy(['variantCode' => $midProduct->PRODUCT_NUMBER . ""]);
+                if (!$variant) {
+                    $variant = new ProductVariant();
+                    $variant =
+                        $this->updateProductVariant($em, $variant, $product, $midProduct, false,);
+                    $em->persist($variant);
+                }
             }
             $progress->finish();
             $output->writeln('');
@@ -113,19 +97,19 @@ class ImportMobCommand extends Command
         $output->writeln('>>Flush ended');
         $output->writeln('Zakończono import produktów z systemu MidOceanBrands');
 
-//        $output->writeln('Rozpoczynam import cen produktów z systemu MidOceanBrands');
-//        $array_data = $this->supplierService->connectToMidoceanCurl('urlPricelist');
-//        $progress = new ProgressBar($output, count($array_data["PRODUCTS"]["PRODUCT"]));
-//        $progress->setFormat('debug');
-//
-//        foreach ($array_data["PRODUCTS"]["PRODUCT"] as $product) {
-//            $progress->advance();
-//            $this->setPrice($em, $product);
-//        }
-//        $progress->finish();
-//        $output->writeln('>>Flush started');
-//        $em->flush();
-//        $output->writeln('>>Flush ended');
+        $output->writeln('Rozpoczynam import cen produktów z systemu MidOceanBrands');
+        $array_data = $this->supplierService->connectToMidoceanCurl('urlPricelist');
+        $progress = new ProgressBar($output, count($array_data["PRODUCTS"]["PRODUCT"]));
+        $progress->setFormat('debug');
+
+        foreach ($array_data["PRODUCTS"]["PRODUCT"] as $product) {
+            $progress->advance();
+            $this->setPrice($em, $product);
+        }
+        $progress->finish();
+        $output->writeln('>>Flush started');
+        $em->flush();
+        $output->writeln('>>Flush ended');
 
 //        $this->deleteOldPhotos($em, $output);
 //        $output->writeln('>>Flush started');
@@ -144,41 +128,98 @@ class ImportMobCommand extends Command
         $product->setName($midProduct->SHORT_DESCRIPTION . ' ' . $midProduct->PRODUCT_NAME);
         $product->setProductCode($midProduct->PRODUCT_BASE_NUMBER . "");
         $product->setDescription($midProduct->LONG_DESCRIPTION);
+        $product->setWeight(explode(',', $midProduct->NET_WEIGHT)[1]);
         $product->setPriceNetto(0);
 
         return $product;
     }
 
-//    private function deleteOldPhotos(
-//        EntityManagerInterface $em,
-//        OutputInterface        $output): void
-//    {
-//        $qb = $em->createQueryBuilder();
-//        $qb->select('p')
-//            ->from(ProductVariantFile::class, 'p')
-//            ->join('p.file', 'f')
-//            ->where('p.toDelete = :toDelete')
-//            ->setParameter('toDelete', 1);
-//        $result = $qb->getQuery()->getResult();
-//        foreach ($result as $pictureToDelete) {
-//            $em->remove($pictureToDelete);
-//            $em->remove($pictureToDelete->getFile());
-//            $pictureToDelete->getFile()->deleteFile();
-////            $output->writeln("Usuwanie " . $pictureToDelete->getFile()->getFilename());
-//        }
-//    }
+    private function updateProductVariant(
+        EntityManagerInterface     $em,
+        ProductVariant             $variant,
+        ?Product                   $product,
+        SimpleXMLElement|bool|null $midProduct,
+        bool                       $ifVariantExistBefore): ProductVariant
+    {
+        $allPhotos = $this->em->getRepository(ProductVariantFile::class)->findBy([
+            'productVariant' => $variant,
+            'toDelete' => false,
+        ]);
 
-//    private function setPrice(EntityManagerInterface $em, mixed $product): void
-//    {
-//        /** @var ProductVariant $variant */
-//        $variant = $em->getRepository(ProductVariant::class)
-//            ->findOneBy(['variantCode' => $product["PRODUCT_NUMBER"]]);
-//
-//        if ($variant) {
-//            $price = floatval(str_replace(',', '.',
-//                str_replace('.', '', $product["PRICE"])));
-//
-//            $variant->getProduct()->setPriceNetto($price);
-//        }
-//    }
+        foreach ($allPhotos as $photo) {
+            $photo->setToDelete(true);
+        }
+
+        $variant->setVariantCode(($midProduct->PRODUCT_NUMBER));
+        $variant->setColor($midProduct->COLOR_DESCRIPTION);
+        $variant->setMaterial($midProduct->MATERIAL_TYPE);
+
+        if (!$ifVariantExistBefore) {
+            if (File::checkIfUrlExists($midProduct->IMAGE_URL)) {
+                $file = new File($midProduct->IMAGE_URL . "");
+                $em->persist($file);
+
+                $productVariantFile = new ProductVariantFile();
+                $productVariantFile
+                    ->setProductVariant($variant)
+                    ->setFile($file)
+                    ->setToDelete(false);
+                $variant->addProductVariantFile($productVariantFile);
+
+                $em->persist($productVariantFile);
+            }
+        }
+
+        $qb = $this->em->createQueryBuilder();
+        $qb->select('p')
+            ->from(ProductVariantFile::class, 'p')
+//            ->join('p.file', 'f')
+            ->andWhere('p.productVariant = :productVariant')
+            ->setParameter('productVariant', $variant->getId());
+
+        $result = $qb->getQuery()->getResult();
+        if (!empty($result)) {
+            /** @var ProductVariantFile $photo */
+            foreach ($result as $photo) {
+                $photo->setToDelete(false);
+            }
+        }
+
+        $variant->setProduct($product);
+        $em->persist($variant);
+
+        return $variant;
+    }
+
+    private function deleteOldPhotos(
+        EntityManagerInterface $em,
+        OutputInterface        $output): void
+    {
+        $qb = $em->createQueryBuilder();
+        $qb->select('p')
+            ->from(ProductVariantFile::class, 'p')
+            ->join('p.file', 'f')
+            ->where('p.toDelete = :toDelete')
+            ->setParameter('toDelete', 1);
+        $result = $qb->getQuery()->getResult();
+        foreach ($result as $pictureToDelete) {
+            $em->remove($pictureToDelete);
+            $em->remove($pictureToDelete->getFile());
+            $pictureToDelete->getFile()->deleteFile();
+            $output->writeln("Usuwanie " . $pictureToDelete->getFile()->getFilename());
+        }
+    }
+
+    private function setPrice(EntityManagerInterface $em, mixed $product): void
+    {
+        /** @var ProductVariant $variant */
+        $variant = $em->getRepository(ProductVariant::class)
+            ->findOneBy(['variantCode' => $product["PRODUCT_NUMBER"]]);
+
+        if ($variant) {
+            $price = floatval(str_replace(',', '.',
+                str_replace('.', '', $product["PRICE"])));
+            $variant->getProduct()->setPriceNetto($price);
+        }
+    }
 }
