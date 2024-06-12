@@ -4,6 +4,19 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    midocean_default:
+        customerNumber: '%env(string:MIDOCEAN_CUSTOMER_NUMBER)%'
+        login: '%env(string:MIDOCEAN_LOGIN)%'
+        password: '%env(string:MIDOCEAN_PASSWORD)%'
+        customerNumber2: '%env(string:MIDOCEAN_CUSTOMER_NUMBER2)%'
+        login2: '%env(string:MIDOCEAN_LOGIN2)%'
+        password2: '%env(string:MIDOCEAN_PASSWORD2)%'
+        login_reflect: '%env(string:MIDOCEAN_LOGIN_REFLECT)%'
+        password_reflect: '%env(string:MIDOCEAN_PASSWORD_REFLECT)%'
+        urlOrderCreate: '%env(string:MIDOCEAN_URL_ORDER_CREATE)%'
+        urlPricelist: '%env(string:MIDOCEAN_URL_PRICELIST)%'
+        urlPrintPricelist: '%env(string:MIDOCEAN_URL_PRINT_PRICELIST)%'
+        url: '%env(string:MIDOCEAN_URL)%'
 
 services:
     # default configuration for services in *this* file
@@ -19,6 +32,10 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    App\Service\SupplierService:
+        arguments:
+            $midoceanConfig: '%midocean_default%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

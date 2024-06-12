@@ -10,3 +10,4 @@
 ###< symfony/framework-bundle ###
 /.idea/
 /public/import/mob/prodinfo_PL.xml
+/public/uploads/

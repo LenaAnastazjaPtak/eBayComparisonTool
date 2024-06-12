@@ -19,7 +19,8 @@
         "symfony/runtime": "6.4.*",
         "symfony/yaml": "6.4.*",
       "ext-ftp": "*",
-      "ext-simplexml": "*"
+      "ext-simplexml": "*",
+      "ext-curl": "*"
     },
     "config": {
         "allow-plugins": {
