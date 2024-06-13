@@ -33,3 +33,18 @@ create_category:
     path: /create/category
     controller: App\Controller\CategoryController::create
     methods: ['POST']
+
+get_product_variants:
+    path: /get/product-variants
+    controller: App\Controller\ProductVariantController::all
+    methods: ['GET']
+
+get_product_variant:
+    path: /get/product-variant/{id}
+    controller: App\Controller\ProductVariantController::one
+    methods: ['GET']
+
+create_product_variant:
+    path: /create/product-variant
+    controller: App\Controller\ProductVariantController::create
+    methods: ['POST']
