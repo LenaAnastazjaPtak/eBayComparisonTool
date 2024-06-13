@@ -16,6 +16,28 @@ class ProductVariantRepository extends ServiceEntityRepository
         parent::__construct($registry, ProductVariant::class);
     }
 
+    public function transform(ProductVariant $productVariant): array
+    {
+        return [
+            'id' => (int)$productVariant->getId(),
+            'variantCode' => (string)$productVariant->getVariantCode(),
+            'color' => (string)$productVariant->getColor(),
+            'material' => (string)$productVariant->getMaterial(),
+        ];
+    }
+
+    public function transformAll(): array
+    {
+        $productVariants = $this->findAll();
+        $productsArray = [];
+
+        foreach ($productVariants as $productVariant) {
+            $productsArray[] = $this->transform($productVariant);
+        }
+
+        return $productsArray;
+    }
+
     //    /**
     //     * @return ProductVariant[] Returns an array of ProductVariant objects
     //     */

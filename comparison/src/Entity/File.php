@@ -45,6 +45,11 @@ class File
         $this->productVariantFiles = new ArrayCollection();
     }
 
+    public function getFilepath(): string
+    {
+        return __DIR__ . "/../../public/uploads/images/products/" . $this->filename;
+    }
+
     public function sendFile($file, $filename, $ftp, string $dir, bool $newFile): void
     {
         $this->deleteFile();

@@ -11,16 +11,56 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class ProductRepository extends ServiceEntityRepository
 {
-    public function transform(object $product): array
+    public function transform(Product $product): array
     {
-        return [
+        // Budowanie tablicy z danymi produktu
+        $productData = [
             'id' => (int)$product->getId(),
             'code' => (string)$product->getProductCode(),
             'name' => (string)$product->getName(),
             'description' => (string)$product->getDescription(),
             'price' => (float)$product->getPriceNetto(),
+            'variants' => []
         ];
+
+        // Iteracja po wariantach produktu
+        foreach ($product->getProductVariants() as $variant) {
+            $variantData = [
+                'id' => $variant->getId(),
+                'variantCode' => $variant->getVariantCode(),
+                'color' => $variant->getColor(),
+                'material' => $variant->getMaterial(),
+                'variantFiles' => []
+            ];
+
+            // Iteracja po plikach wariantów
+            foreach ($variant->getProductVariantFiles() as $variantFile) {
+                if (!$variantFile->isToDelete()) {
+                    $variantFileData = [
+                        'id' => $variantFile->getId(),
+                        'filename' => $variantFile->getFile()->getFilepath()
+                    ];
+                    $variantData['variantFiles'][] = $variantFileData;
+                }
+
+                $productData['variants'][] = $variantData;
+            }
+        }
+
+        // Zwrócenie danych jako JSON
+        return $productData;
     }
+
+//    public function transform(object $product): array
+//    {
+//        return [
+//            'id' => (int)$product->getId(),
+//            'code' => (string)$product->getProductCode(),
+//            'name' => (string)$product->getName(),
+//            'description' => (string)$product->getDescription(),
+//            'price' => (float)$product->getPriceNetto()
+//        ];
+//    }
 
     public function transformAll(): array
     {
